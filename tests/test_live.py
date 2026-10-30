@@ -81,7 +81,7 @@ def test_run_loop(monkeypatch, tmp_path):
     other = {**match("NS", None, fid=2), "home": "Burnley", "away": "Luton", "home_id": 5, "away_id": 6}
     monkeypatch.setattr(football, "fixtures_on", lambda d: [match("NS", None), other])
     monkeypatch.setattr(football, "standings", lambda lid, season: {40: 1, 5: 15, 6: 20})
-    monkeypatch.setattr(football, "fixtures_by_ids", lambda ids: [seq.pop(0)])
+    monkeypatch.setattr(live, "fetch_active", lambda active, ld, now: [seq.pop(0)])
     monkeypatch.setattr(live.telegram, "send", lambda text, dry_run=False: sent.append(text))
 
     def sleep(s):
@@ -166,7 +166,7 @@ def test_interactive_run_follows_admin_choice(monkeypatch):
         clock["t"] += timedelta(seconds=timeout)
         return taps.pop(0) if taps else []
     monkeypatch.setattr(live.telegram, "get_updates", get_updates)
-    monkeypatch.setattr(football, "fixtures_by_ids", lambda ids: polled.append(ids) or [])
+    monkeypatch.setattr(live, "fetch_active", lambda active, ld, now: polled.append(active) or [])
     live.run(hours=3, now_fn=lambda: clock["t"], sleep=lambda s: None)
     assert len(menus_sent) == 1 and polled == [] and posted == []
 
@@ -181,3 +181,29 @@ def test_standings_failure_not_retried(monkeypatch):
     st = fresh()
     assert live.ranks_for(307, 2026, st, "d") == {} and live.ranks_for(307, 2026, st, "d") == {}
     assert calls == [307]
+
+
+
+def test_fetch_active_uses_live_feed_then_id(monkeypatch):
+    calls = []
+    a = {"id": 1, "kickoff": KO, "completed": False, "league_id": 39}
+    feed_m = {**match("1H", 20, hs=1), "has_events": False}
+    monkeypatch.setattr(football, "live_fixtures", lambda lids: calls.append(("live", lids)) or [feed_m])
+    monkeypatch.setattr(football, "fixture_by_id",
+                        lambda fid: calls.append(("id", fid)) or match("1H", 20, [goal(19)], hs=1))
+    # hisob o'zgardi, voqealar yo'q -> id bilan so'raladi
+    out = live.fetch_active([a], {}, KO + timedelta(minutes=20))
+    assert out[0]["events"] and calls == [("live", {39}), ("id", 1)]
+    # o'zgarmadi -> eski voqealar ishlatiladi, qo'shimcha so'rov yo'q
+    calls.clear()
+    out = live.fetch_active([a], {"1": out[0]}, KO + timedelta(minutes=22))
+    assert calls == [("live", {39})] and out[0]["events"]
+    # o'yin feeddan chiqdi (tugadi) -> id bilan yakuniy holat
+    calls.clear()
+    monkeypatch.setattr(football, "live_fixtures", lambda lids: [])
+    monkeypatch.setattr(football, "fixture_by_id", lambda fid: calls.append(fid) or match("FT", 90, hs=1))
+    out = live.fetch_active([a], {"1": match("2H", 88, hs=1)}, KO + timedelta(minutes=110))
+    assert out[0]["status"] == "FT" and calls == [1]
+    # hali boshlanmagan (feedda yo'q, yaqinda) -> hech narsa so'ralmaydi
+    calls.clear()
+    assert live.fetch_active([a], {}, KO + timedelta(minutes=2)) == [] and calls == []

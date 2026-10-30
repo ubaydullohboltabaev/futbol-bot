@@ -81,7 +81,10 @@ def fixtures_by_league(day: date, league_ids):
 
 def fixtures_on(day_utc: date):
     """Berilgan UTC kunidagi barcha o'yinlar (filtrsiz)."""
-    data = _get("fixtures", {"date": day_utc.isoformat(), "timezone": "UTC"})
+    return _parse_all(_get("fixtures", {"date": day_utc.isoformat(), "timezone": "UTC"}))
+
+
+def _parse_all(data):
     out = []
     for item in data.get("response", []):
         try:
@@ -91,18 +94,27 @@ def fixtures_on(day_utc: date):
     return out
 
 
-def fixtures_by_ids(ids):
-    """O'yinlarni voqealari bilan birga olish (bir so'rovda 20 tagacha)."""
+def fixture_by_id(fid):
+    """Bitta o'yin voqealari bilan (bepul tarifda "ids" yo'q, "id" bor)."""
+    data = _get("fixtures", {"id": fid, "timezone": "UTC"})
+    res = _parse_all(data)
+    return res[0] if res else None
+
+
+def live_fixtures(league_ids):
+    """Hozir ketayotgan o'yinlar (bitta so'rov). Voqealar bo'lishi ham, bo'lmasligi ham mumkin."""
+    data = _get("fixtures", {"live": "-".join(str(i) for i in sorted(set(league_ids))),
+                             "timezone": "UTC"})
+    for item in data.get("response", []):
+        item.setdefault("_has_events", "events" in item)
     out = []
-    ids = list(ids)
-    for i in range(0, len(ids), 20):
-        chunk = "-".join(str(x) for x in ids[i:i + 20])
-        data = _get("fixtures", {"ids": chunk, "timezone": "UTC"})
-        for item in data.get("response", []):
-            try:
-                out.append(parse_fixture(item))
-            except (KeyError, TypeError, ValueError):
-                continue
+    for item in data.get("response", []):
+        try:
+            m = parse_fixture(item)
+        except (KeyError, TypeError, ValueError):
+            continue
+        m["has_events"] = item["_has_events"]
+        out.append(m)
     return out
 
 

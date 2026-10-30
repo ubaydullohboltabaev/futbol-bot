@@ -232,6 +232,39 @@ def process(m, state, rng=random):
 
 # ---------- asosiy tsikl ----------
 
+def _changed(m, prev):
+    return prev is None or (m["status"], m["home_score"], m["away_score"]) != (
+        prev["status"], prev["home_score"], prev["away_score"])
+
+
+def fetch_active(active, live_data, now):
+    """Tanlangan, boshlangan o'yinlarning yangi holati.
+
+    Bepul tarifda "ids" ishlamaydi, shuning uchun: bitta "live" so'rovi bilan
+    hamma jonli o'yinlarni olamiz; voqealar kelmasa yoki o'yin ro'yxatdan
+    chiqib ketsa (tugagan), faqat o'sha o'yinni "id" bilan so'raymiz.
+    """
+    feed = {m["id"]: m for m in football.live_fixtures({m["league_id"] for m in active})}
+    out = []
+    for a in active:
+        fid = a["id"]
+        prev = live_data.get(str(fid))
+        m = feed.get(fid)
+        if m is None:
+            seen_live = prev is not None and prev["status"] not in football.FINISHED
+            if seen_live or now - a["kickoff"] > timedelta(minutes=100):
+                m = football.fixture_by_id(fid)  # tugagan yoki qoldirilgan bo'lishi mumkin
+            if m is None:
+                continue  # hali boshlanmagan
+        elif not m.get("has_events", True):
+            if _changed(m, prev):
+                m = football.fixture_by_id(fid) or m
+            elif prev:
+                m["events"] = prev["events"]
+        out.append(m)
+    return out
+
+
 def poll_interval(now, matches, deadline):
     """Qolgan limit va kutilayotgan jonli vaqtga qarab so'rovlar oralig'i (soniya)."""
     remaining = football.quota["remaining"]
@@ -375,6 +408,39 @@ def handle_update(upd, state):
 
 # ---------- asosiy tsikl ----------
 
+def _changed(m, prev):
+    return prev is None or (m["status"], m["home_score"], m["away_score"]) != (
+        prev["status"], prev["home_score"], prev["away_score"])
+
+
+def fetch_active(active, live_data, now):
+    """Tanlangan, boshlangan o'yinlarning yangi holati.
+
+    Bepul tarifda "ids" ishlamaydi, shuning uchun: bitta "live" so'rovi bilan
+    hamma jonli o'yinlarni olamiz; voqealar kelmasa yoki o'yin ro'yxatdan
+    chiqib ketsa (tugagan), faqat o'sha o'yinni "id" bilan so'raymiz.
+    """
+    feed = {m["id"]: m for m in football.live_fixtures({m["league_id"] for m in active})}
+    out = []
+    for a in active:
+        fid = a["id"]
+        prev = live_data.get(str(fid))
+        m = feed.get(fid)
+        if m is None:
+            seen_live = prev is not None and prev["status"] not in football.FINISHED
+            if seen_live or now - a["kickoff"] > timedelta(minutes=100):
+                m = football.fixture_by_id(fid)  # tugagan yoki qoldirilgan bo'lishi mumkin
+            if m is None:
+                continue  # hali boshlanmagan
+        elif not m.get("has_events", True):
+            if _changed(m, prev):
+                m = football.fixture_by_id(fid) or m
+            elif prev:
+                m["events"] = prev["events"]
+        out.append(m)
+    return out
+
+
 def run(hours=5.9, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(timezone.utc)):
     start = now_fn()
     deadline = start + timedelta(hours=hours)
@@ -422,7 +488,8 @@ def run(hours=5.9, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(
                 ko = datetime.fromisoformat(f["kickoff"])
                 done = live_data.get(fid, {}).get("completed")
                 if not done and now - timedelta(hours=4) <= ko <= deadline:
-                    out.append({"id": int(fid), "kickoff": ko, "completed": False})
+                    out.append({"id": int(fid), "kickoff": ko, "completed": False,
+                                "league_id": f["league_id"]})
         return out
 
     try:
@@ -461,10 +528,10 @@ def run(hours=5.9, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(
                 continue
 
             try:
-                fresh = football.fixtures_by_ids([m["id"] for m in active])
-            except Exception as e:  # tarmoq xatosi bo'lsa, oyna to'xtamasin
+                fresh = fetch_active(active, live_data, now)
+            except Exception as e:  # tarmoq yoki tarif xatosi bo'lsa, oyna to'xtamasin
                 print(f"[ogohlantirish] {e}")
-                wait(120)
+                wait(600)  # limitni behuda yeb qo'ymaslik uchun uzoqroq kutamiz
                 continue
             for m in fresh:
                 for text in process(m, state):

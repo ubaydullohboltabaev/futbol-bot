@@ -1,0 +1,19 @@
+name: Ertalabki post (natijalar + bugungi o'yinlar)
+on:
+  schedule:
+    - cron: "0 4 * * *"   # har kuni 09:00 Toshkent vaqti
+  workflow_dispatch:
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python main.py morning
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          CHANNEL_SIGNATURE: ${{ vars.CHANNEL_SIGNATURE }}

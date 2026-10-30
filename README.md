@@ -43,5 +43,9 @@ o'yin boshlanishi, gollar (pas bergan bilan), avtogol, o'tkazilgan penalti, qizi
 - O'yin bo'lmagan vaqtda so'rov sarflamaydi, faqat kutadi.
 - Bepul tarif kuniga 100 so'rov beradi, shuning uchun bot tekshiruvlar orasidagi vaqtni qolgan limitga qarab o'zi tanlaydi
   (odatda 2–6 daqiqa). Pullik tarifda (kuniga 7500 so'rov) har daqiqada tekshiradi.
-- Qaysi ligalar jonli kuzatilishini `bot/config.py` dagi `"live": False` bilan o'chirish mumkin (MLS sukut bo'yicha o'chiq: tunda, bir vaqtda 10+ o'yin).
+- Faqat **muhim o'yinlar** jonli beriladi (`bot/config.py`):
+  - ligalarda jadvalning top-3 jamoasi o'ynasa (`LIVE_TOP_N`);
+  - Chempionlar Ligasi, Osiyo CL, Jahon, Yevro, Osiyo kubogida — pley-off bosqichi;
+  - istalgan turnirda `BIG_TEAMS` ro'yxatidagi jamoa (O'zbekiston terma jamoasi, Real, Barselona, Paxtakor va h.k.) o'ynasa.
+- Ligani jonli rejimdan butunlay chiqarish uchun `bot/config.py` da unga `"live": False` qo'shing.
 - Sariq kartochkalarni ham yuborish uchun Variables'da `LIVE_YELLOW_CARDS=1` qo'ying.

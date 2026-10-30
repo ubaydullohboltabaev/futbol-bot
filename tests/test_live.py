@@ -10,7 +10,8 @@ def match(status="1H", elapsed=5, events=(), hs=0, as_=0, fid=1, league=39):
     return {"id": fid, "league_id": league, "home": "Liverpool", "away": "Arsenal",
             "home_score": hs, "away_score": as_, "kickoff": KO, "status": status,
             "completed": status in football.FINISHED, "live": True, "venue": "",
-            "elapsed": elapsed, "events": list(events)}
+            "elapsed": elapsed, "events": list(events), "season": 2026, "round": "",
+            "home_id": 40, "away_id": 42}
 
 
 def goal(minute, name="Salah", detail="Normal Goal"):
@@ -77,7 +78,9 @@ def test_run_loop(monkeypatch, tmp_path):
     clock = {"t": KO - timedelta(minutes=30)}
     sent = []
     seq = [match("1H", 2), match("1H", 20, [goal(19)], hs=1), match("FT", 90, [goal(19)], hs=1)]
-    monkeypatch.setattr(football, "fixtures_on", lambda d: [match("NS", None)])
+    other = {**match("NS", None, fid=2), "home": "Burnley", "away": "Luton", "home_id": 5, "away_id": 6}
+    monkeypatch.setattr(football, "fixtures_on", lambda d: [match("NS", None), other])
+    monkeypatch.setattr(football, "standings", lambda lid, season: {40: 1, 5: 15, 6: 20})
     monkeypatch.setattr(football, "fixtures_by_ids", lambda ids: [seq.pop(0)])
     monkeypatch.setattr(live.telegram, "send", lambda text, dry_run=False: sent.append(text))
 
@@ -86,3 +89,29 @@ def test_run_loop(monkeypatch, tmp_path):
     live.run(hours=5, sleep=sleep, now_fn=lambda: clock["t"])
     assert [("BOSHLANDI" in s, "GOOOL" in s, "TUGADI" in s) for s in sent] == [
         (True, False, False), (False, True, False), (False, False, True)]
+
+
+def plain(home, away, hid, aid, league=39, rnd="Regular Season - 10"):
+    return {**match("NS", None, league=league), "home": home, "away": away,
+            "home_id": hid, "away_id": aid, "round": rnd}
+
+
+def test_importance_rules():
+    ranks = {10: 1, 11: 2, 12: 3, 13: 4, 14: 15}
+    assert live.why_important(plain("Brentford", "Fulham", 13, 14), ranks) is None
+    assert "lider" in live.why_important(plain("Brentford", "Leeds", 12, 14), ranks)
+    assert "katta" in live.why_important(plain("Fulham", "Real Madrid", 14, 99, league=140), {})
+    assert "katta" in live.why_important(plain("Bayern München", "X", 1, 2, league=2), {})
+    # kubok: guruh bosqichi oddiy o'yin — yo'q, pley-off — ha
+    assert live.why_important(plain("Celtic", "Brugge", 1, 2, league=2, rnd="League Stage - 3"), {}) is None
+    assert "pley-off" in live.why_important(plain("Celtic", "Brugge", 1, 2, league=2, rnd="Quarter-finals"), {})
+    assert live.why_important(plain("Interactive", "X", 1, 2), {}) is None
+
+
+def test_standings_cached_once_per_day(monkeypatch):
+    calls = []
+    monkeypatch.setattr(football, "standings", lambda lid, s: calls.append(lid) or {7: 1})
+    st = fresh()
+    assert live.ranks_for(39, 2026, st, "2026-10-30") == {7: 1}
+    assert live.ranks_for(39, 2026, st, "2026-10-30") == {7: 1}
+    assert calls == [39]

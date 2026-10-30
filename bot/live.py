@@ -16,7 +16,8 @@ import time
 from datetime import datetime, timedelta, timezone
 
 from . import football, telegram
-from .config import LEAGUES, LIVE_MIN_INTERVAL, LIVE_STATE_FILE, LIVE_YELLOW_CARDS
+from .config import (BIG_TEAMS, KNOCKOUT_WORDS, LEAGUES, LIVE_MIN_INTERVAL, LIVE_STATE_FILE,
+                     LIVE_TOP_N, LIVE_YELLOW_CARDS)
 from .posts import esc
 
 MATCH_LENGTH = timedelta(minutes=115)  # tanaffus va qo'shilgan vaqt bilan taxminan
@@ -58,6 +59,44 @@ def league_cfg(league_id):
 
 def live_league_ids():
     return {lg["id"] for lg in LEAGUES if lg.get("live", True)}
+
+
+# ---------- qaysi o'yinlar muhim ----------
+
+def is_big(name):
+    return any(name == b or name.startswith(b + " ") for b in BIG_TEAMS)
+
+
+def why_important(m, ranks):
+    """Muhim bo'lsa sababini, bo'lmasa None qaytaradi. ranks: {team_id: o'rni}."""
+    lg = league_cfg(m["league_id"]) or {}
+    for side in ("home", "away"):
+        if is_big(m[side]):
+            return f"katta jamoa: {m[side]}"
+    if lg.get("cup"):
+        if any(w.lower() in m["round"].lower() for w in KNOCKOUT_WORDS):
+            return f"pley-off: {m['round']}"
+        return None
+    for side in ("home", "away"):
+        r = ranks.get(m[f"{side}_id"])
+        if r is not None and r <= LIVE_TOP_N:
+            return f"lider: {m[side]} ({r}-o'rin)"
+    return None
+
+
+def ranks_for(league_id, season, state, today):
+    """Jadvalni kuniga bir marta oladi va holatda saqlaydi (so'rov tejash)."""
+    key = f"{league_id}:{season}:{today}"
+    cache = state.setdefault("standings", {})
+    if key not in cache:
+        try:
+            cache[key] = {str(k): v for k, v in football.standings(league_id, season).items()}
+        except Exception as e:
+            print(f"[ogohlantirish] jadval {league_id}: {e}")
+            return {}
+        for old in [k for k in cache if not k.endswith(str(today))]:
+            del cache[old]
+    return {int(k): v for k, v in cache[key].items()}
 
 
 # ---------- holat (qaysi voqealar yuborilgan) ----------
@@ -229,8 +268,20 @@ def run(hours=5.8, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(
                 continue
             if start - MATCH_LENGTH * 2 <= m["kickoff"] <= deadline:
                 matches[m["id"]] = m
-    print(f"Oynada {len(matches)} ta o'yin kuzatiladi")
     state = load_state()
+
+    # faqat muhim o'yinlar: liderlar, katta jamoalar, kubok pley-offlari
+    today = start.date().isoformat()
+    important = {}
+    for m in matches.values():
+        lg = league_cfg(m["league_id"]) or {}
+        ranks = {} if lg.get("cup") else ranks_for(m["league_id"], m["season"], state, today)
+        reason = why_important(m, ranks)
+        if reason:
+            important[m["id"]] = m
+            print(f"Kuzatiladi: {m['home']} — {m['away']} ({reason})")
+    matches = important
+    print(f"Oynada {len(matches)} ta muhim o'yin kuzatiladi")
 
     try:
         while matches:

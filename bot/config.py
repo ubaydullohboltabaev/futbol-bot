@@ -16,21 +16,21 @@ LEAGUES = [
      "watch": "Setanta Sports, Megogo"},
     {"id": 140, "name": "La Liga", "emoji": "🇪🇸",
      "watch": "Setanta Sports, Megogo"},
-    {"id": 2, "name": "Chempionlar Ligasi", "emoji": "⭐️",
+    {"id": 2, "name": "Chempionlar Ligasi", "cup": True, "emoji": "⭐️",
      "watch": "Futbol TV, Setanta Sports, Megogo"},
     {"id": 369, "name": "O'zbekiston Superligasi", "emoji": "🇺🇿",
      "watch": "Futbol TV, Sport TV, PFL YouTube"},
     {"id": 307, "name": "Saudiya Pro Ligasi", "emoji": "🇸🇦",
      "watch": "Thmanyah, Setanta Sports"},
-    {"id": 17, "name": "Osiyo Chempionlar Ligasi", "emoji": "🌏",
+    {"id": 17, "name": "Osiyo Chempionlar Ligasi", "cup": True, "emoji": "🌏",
      "watch": "Futbol TV, AFC YouTube"},
     {"id": 253, "name": "MLS", "emoji": "🇺🇸",
-     "watch": "Apple TV (MLS Season Pass)", "live": False},  # tunda, bir vaqtda 10+ o'yin
-    {"id": 1, "name": "Jahon Chempionati", "emoji": "🏆",
+     "watch": "Apple TV (MLS Season Pass)"},
+    {"id": 1, "name": "Jahon Chempionati", "cup": True, "emoji": "🏆",
      "watch": "Futbol TV, Sport TV"},
-    {"id": 4, "name": "Yevropa Chempionati", "emoji": "🇪🇺",
+    {"id": 4, "name": "Yevropa Chempionati", "cup": True, "emoji": "🇪🇺",
      "watch": "Futbol TV, Setanta Sports"},
-    {"id": 7, "name": "Osiyo Kubogi", "emoji": "🏆",
+    {"id": 7, "name": "Osiyo Kubogi", "cup": True, "emoji": "🏆",
      "watch": "Futbol TV, Sport TV"},
 ]
 
@@ -56,3 +56,15 @@ NEWS_MAX_PER_RUN = int(os.environ.get("NEWS_MAX_PER_RUN", "3"))
 LIVE_MIN_INTERVAL = int(os.environ.get("LIVE_MIN_INTERVAL", "60"))  # so'rovlar orasidagi eng kam soniya
 LIVE_YELLOW_CARDS = os.environ.get("LIVE_YELLOW_CARDS", "0") == "1"  # sariq kartochkalarni ham yuborish
 LIVE_STATE_FILE = os.environ.get("LIVE_STATE_FILE", "live_state.json")
+
+# Jonli rejimda faqat muhim o'yinlar:
+# - ligalarda: jadvalning eng yuqori LIVE_TOP_N o'rnidagi jamoa o'ynasa
+# - kubok turnirlarida: pley-off bosqichi (1/8, chorak, yarim final, final)
+# - har qanday turnirda: BIG_TEAMS ro'yxatidagi jamoa o'ynasa
+LIVE_TOP_N = int(os.environ.get("LIVE_TOP_N", "3"))
+BIG_TEAMS = [
+    "Uzbekistan", "Real Madrid", "Barcelona", "Manchester City", "Liverpool", "Arsenal",
+    "Manchester United", "Chelsea", "Bayern", "Paris Saint Germain", "Inter", "Al-Nassr",
+    "Al-Hilal", "Al-Ittihad", "Inter Miami", "Pakhtakor", "Nasaf", "Navbahor",
+]
+KNOCKOUT_WORDS = ["Final", "Semi", "Quarter", "Round of 16", "8th Finals", "Play-off", "Knockout"]

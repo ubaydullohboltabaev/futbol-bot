@@ -44,6 +44,10 @@ def parse_fixture(item):
     return {
         "id": fx.get("id"),
         "league_id": item["league"]["id"],
+        "season": item["league"].get("season"),
+        "round": item["league"].get("round") or "",
+        "home_id": teams["home"].get("id"),
+        "away_id": teams["away"].get("id"),
         "home": teams["home"]["name"],
         "away": teams["away"]["name"],
         "home_score": goals.get("home"),
@@ -100,3 +104,16 @@ def fixtures_by_ids(ids):
             except (KeyError, TypeError, ValueError):
                 continue
     return out
+
+
+def standings(league_id, season):
+    """{team_id: o'rni} — liga jadvali (guruhlar bo'lsa, guruhdagi o'rni)."""
+    data = _get("standings", {"league": league_id, "season": season})
+    ranks = {}
+    for entry in data.get("response", []):
+        for group in (entry.get("league") or {}).get("standings") or []:
+            for row in group:
+                tid = (row.get("team") or {}).get("id")
+                if tid is not None:
+                    ranks[tid] = min(row.get("rank") or 99, ranks.get(tid, 99))
+    return ranks

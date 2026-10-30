@@ -25,7 +25,7 @@ LEAGUES = [
     {"id": 17, "name": "Osiyo Chempionlar Ligasi", "emoji": "🌏",
      "watch": "Futbol TV, AFC YouTube"},
     {"id": 253, "name": "MLS", "emoji": "🇺🇸",
-     "watch": "Apple TV (MLS Season Pass)"},
+     "watch": "Apple TV (MLS Season Pass)", "live": False},  # tunda, bir vaqtda 10+ o'yin
     {"id": 1, "name": "Jahon Chempionati", "emoji": "🏆",
      "watch": "Futbol TV, Sport TV"},
     {"id": 4, "name": "Yevropa Chempionati", "emoji": "🇪🇺",
@@ -51,3 +51,8 @@ CHANNEL_SIGNATURE = os.environ.get("CHANNEL_SIGNATURE", "")  # postlar oxiriga q
 # Yangiliklar: oxirgi necha soatda chiqqanlarini olish (cron oralig'i bilan bir xil bo'lsin)
 NEWS_WINDOW_HOURS = int(os.environ.get("NEWS_WINDOW_HOURS", "3"))
 NEWS_MAX_PER_RUN = int(os.environ.get("NEWS_MAX_PER_RUN", "3"))
+
+# Jonli rejim
+LIVE_MIN_INTERVAL = int(os.environ.get("LIVE_MIN_INTERVAL", "60"))  # so'rovlar orasidagi eng kam soniya
+LIVE_YELLOW_CARDS = os.environ.get("LIVE_YELLOW_CARDS", "0") == "1"  # sariq kartochkalarni ham yuborish
+LIVE_STATE_FILE = os.environ.get("LIVE_STATE_FILE", "live_state.json")

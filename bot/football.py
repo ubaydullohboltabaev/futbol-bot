@@ -18,12 +18,19 @@ class ApiError(RuntimeError):
     pass
 
 
+# Oxirgi javobdagi kunlik qolgan so'rovlar soni (limitni tejash uchun)
+quota = {"remaining": None}
+
+
 def _get(path, params):
     if not API_FOOTBALL_KEY:
         raise ApiError("API_FOOTBALL_KEY sozlanmagan")
     r = requests.get(f"{API_FOOTBALL_BASE}/{path}", params=params,
                      headers={"x-apisports-key": API_FOOTBALL_KEY}, timeout=30)
     r.raise_for_status()
+    rem = r.headers.get("x-ratelimit-requests-remaining")
+    if rem is not None and rem.lstrip("-").isdigit():
+        quota["remaining"] = int(rem)
     data = r.json()
     errors = data.get("errors")
     if errors:  # API xatoni 200 bilan, "errors" maydonida qaytaradi
@@ -46,6 +53,8 @@ def parse_fixture(item):
         "completed": status in FINISHED,
         "live": status in LIVE,
         "venue": (fx.get("venue") or {}).get("name") or "",
+        "elapsed": (fx.get("status") or {}).get("elapsed"),
+        "events": item.get("events") or [],
     }
 
 
@@ -63,4 +72,31 @@ def fixtures_by_league(day: date, league_ids):
             out[m["league_id"]].append(m)
     for matches in out.values():
         matches.sort(key=lambda m: m["kickoff"])
+    return out
+
+
+def fixtures_on(day_utc: date):
+    """Berilgan UTC kunidagi barcha o'yinlar (filtrsiz)."""
+    data = _get("fixtures", {"date": day_utc.isoformat(), "timezone": "UTC"})
+    out = []
+    for item in data.get("response", []):
+        try:
+            out.append(parse_fixture(item))
+        except (KeyError, TypeError, ValueError):
+            continue
+    return out
+
+
+def fixtures_by_ids(ids):
+    """O'yinlarni voqealari bilan birga olish (bir so'rovda 20 tagacha)."""
+    out = []
+    ids = list(ids)
+    for i in range(0, len(ids), 20):
+        chunk = "-".join(str(x) for x in ids[i:i + 20])
+        data = _get("fixtures", {"ids": chunk, "timezone": "UTC"})
+        for item in data.get("response", []):
+            try:
+                out.append(parse_fixture(item))
+            except (KeyError, TypeError, ValueError):
+                continue
     return out

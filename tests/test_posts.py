@@ -33,6 +33,7 @@ def test_fixtures_by_league_filters(monkeypatch):
 
 def test_api_errors_raise(monkeypatch):
     class R:
+        headers = {}
         def raise_for_status(self): pass
         def json(self): return {"errors": {"plan": "Free plans do not have access"}, "response": []}
     monkeypatch.setattr(football, "API_FOOTBALL_KEY", "k")

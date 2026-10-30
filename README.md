@@ -35,6 +35,13 @@ python main.py news --dry-run
 
 Testlar: `pip install pytest && python -m pytest tests`
 
-## Keyingi bosqich
+## Jonli rejim
 
-Jonli o'yin: gol, kartochka, VAR voqealarini o'yin davomida kanalga yuborish.
+"Jonli o'yinlar" workflow'i har 6 soatda o'zi ishga tushadi va o'yin ketayotganda kanalga yuboradi:
+o'yin boshlanishi, gollar (pas bergan bilan), avtogol, o'tkazilgan penalti, qizil kartochka, VAR, tanaffus va yakuniy hisob.
+
+- O'yin bo'lmagan vaqtda so'rov sarflamaydi, faqat kutadi.
+- Bepul tarif kuniga 100 so'rov beradi, shuning uchun bot tekshiruvlar orasidagi vaqtni qolgan limitga qarab o'zi tanlaydi
+  (odatda 2–6 daqiqa). Pullik tarifda (kuniga 7500 so'rov) har daqiqada tekshiradi.
+- Qaysi ligalar jonli kuzatilishini `bot/config.py` dagi `"live": False` bilan o'chirish mumkin (MLS sukut bo'yicha o'chiq: tunda, bir vaqtda 10+ o'yin).
+- Sariq kartochkalarni ham yuborish uchun Variables'da `LIVE_YELLOW_CARDS=1` qo'ying.

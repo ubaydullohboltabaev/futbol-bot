@@ -5,6 +5,7 @@ Ishlatish:
   python main.py fixtures  # faqat bugungi o'yinlar
   python main.py results   # faqat kechagi natijalar
   python main.py news      # so'nggi yangiliklar (ANTHROPIC_API_KEY kerak)
+  python main.py live      # jonli rejim: ~6 soat davomida o'yin voqealarini yuboradi
 
 --dry-run qo'shsangiz, kanalga yubormaydi, faqat ekranga chiqaradi.
 """
@@ -13,7 +14,7 @@ import argparse
 import sys
 from datetime import datetime, timedelta, timezone
 
-from bot import ai, football, news, posts, telegram
+from bot import ai, football, live, news, posts, telegram
 from bot.config import LEAGUES, NEWS_MAX_PER_RUN, NEWS_WINDOW_HOURS, TZ
 
 
@@ -66,8 +67,9 @@ def run_news(dry):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("command", choices=["morning", "fixtures", "results", "news"])
+    p.add_argument("command", choices=["morning", "fixtures", "results", "news", "live"])
     p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--hours", type=float, default=5.8, help="jonli rejim necha soat ishlasin")
     args = p.parse_args()
     if args.command in ("morning", "results"):
         run_results(args.dry_run)
@@ -75,6 +77,8 @@ def main():
         run_fixtures(args.dry_run)
     if args.command == "news":
         run_news(args.dry_run)
+    if args.command == "live":
+        live.run(hours=args.hours, dry_run=args.dry_run)
 
 
 if __name__ == "__main__":

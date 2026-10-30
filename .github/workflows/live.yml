@@ -12,6 +12,9 @@ on:
       hours:
         description: "Necha soat ishlasin"
         default: "5.9"
+permissions:
+  contents: read
+  actions: write   # oyna tugaganda keyingisini o'zi ishga tushirishi uchun
 concurrency:
   group: live   # bir vaqtda faqat bitta jonli kuzatuv
   cancel-in-progress: false
@@ -20,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 358
     steps:
+      - run: echo "STARTED_AT=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
@@ -44,3 +48,16 @@ jobs:
         with:
           path: live_state.json
           key: live-state-${{ github.run_id }}
+      # GitHub cron'i ba'zan 30-60 daqiqa kechikadi, shuning uchun oyna tugashi bilan
+      # keyingisini darhol o'zi ishga tushiradi (cron faqat zaxira).
+      - name: Keyingi oynani ishga tushirish
+        # faqat oyna muvaffaqiyatli va uzoq ishlagan bo'lsa (xato bo'lsa cheksiz aylanib qolmasin)
+        if: success() && !inputs.dry_run
+        run: |
+          if [ $(( $(date +%s) - STARTED_AT )) -ge 1800 ]; then
+            gh workflow run live.yml --ref "${{ github.ref_name }}"
+          else
+            echo "Oyna qisqa bo'ldi, keyingisini cron ishga tushiradi"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}

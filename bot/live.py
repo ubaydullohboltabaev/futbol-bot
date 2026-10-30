@@ -93,8 +93,9 @@ def ranks_for(league_id, season, state, today):
         try:
             cache[key] = {str(k): v for k, v in football.standings(league_id, season).items()}
         except Exception as e:
+            # bepul tarif joriy mavsum jadvalini bermaydi — bugun qayta so'ramaymiz
             print(f"[ogohlantirish] jadval {league_id}: {e}")
-            return {}
+            cache[key] = {}
         for old in [k for k in cache if not k.endswith(str(today))]:
             del cache[old]
     return {int(k): v for k, v in cache[key].items()}

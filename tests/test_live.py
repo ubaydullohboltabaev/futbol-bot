@@ -169,3 +169,15 @@ def test_interactive_run_follows_admin_choice(monkeypatch):
     monkeypatch.setattr(football, "fixtures_by_ids", lambda ids: polled.append(ids) or [])
     live.run(hours=3, now_fn=lambda: clock["t"], sleep=lambda s: None)
     assert len(menus_sent) == 1 and polled == [] and posted == []
+
+
+def test_standings_failure_not_retried(monkeypatch):
+    calls = []
+
+    def boom(lid, s):
+        calls.append(lid)
+        raise football.ApiError("Free plans do not have access to this season")
+    monkeypatch.setattr(football, "standings", boom)
+    st = fresh()
+    assert live.ranks_for(307, 2026, st, "d") == {} and live.ranks_for(307, 2026, st, "d") == {}
+    assert calls == [307]

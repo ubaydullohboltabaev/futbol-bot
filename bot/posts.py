@@ -47,7 +47,7 @@ ZERO_ZERO_JOKES = [
 
 
 def esc(s):
-    return html.escape(str(s or ""), quote=False)
+    return html.escape("" if s is None else str(s), quote=False)
 
 
 def uz_date(d):
@@ -108,8 +108,8 @@ def results_post(day, by_league, rng=random):
     return _sign(head + "\n\n" + "\n\n".join(blocks))
 
 
-def news_post(league, title, body, url=""):
-    text = f"{league['emoji']} <b>{esc(title)}</b>\n\n{esc(body)}"
+def news_post(title, body, url=""):
+    text = f"<b>{esc(title)}</b>\n\n{esc(body)}"
     if url:
         text += f'\n\n🔗 <a href="{esc(url)}">Batafsil</a>'
     return _sign(text)

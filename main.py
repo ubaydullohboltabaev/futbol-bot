@@ -13,21 +13,17 @@ import argparse
 import sys
 from datetime import datetime, timedelta, timezone
 
-from bot import ai, espn, posts, telegram
+from bot import ai, football, news, posts, telegram
 from bot.config import LEAGUES, NEWS_MAX_PER_RUN, NEWS_WINDOW_HOURS, TZ
 
 
 def collect(day):
-    out = []
-    for league in LEAGUES:
-        try:
-            out.append((league, espn.fixtures(league["slug"], day)))
-        except Exception as e:  # bitta liga ishlamasa, qolganlari davom etsin
-            print(f"[ogohlantirish] {league['slug']}: {e}", file=sys.stderr)
-    if not out:
-        # Hech bir ligadan ma'lumot kelmadi: "bugun o'yin yo'q" deb noto'g'ri post yubormaymiz
-        sys.exit("Xato: o'yinlar manbasidan ma'lumot olinmadi")
-    return out
+    try:
+        data = football.fixtures_by_league(day, [lg["id"] for lg in LEAGUES])
+    except Exception as e:
+        # Ma'lumot kelmasa, "bugun o'yin yo'q" deb noto'g'ri post yubormaymiz
+        sys.exit(f"Xato: o'yinlar olinmadi: {e}")
+    return [(lg, data.get(lg["id"], [])) for lg in LEAGUES]
 
 
 def run_fixtures(dry):
@@ -49,27 +45,23 @@ def run_news(dry):
         print("ANTHROPIC_API_KEY yo'q — yangiliklar o'tkazib yuborildi")
         return
     since = datetime.now(timezone.utc) - timedelta(hours=NEWS_WINDOW_HOURS)
-    items = []
-    for league in LEAGUES:
-        try:
-            for a in espn.news(league["slug"]):
-                if a["published"] >= since and a["headline"]:
-                    items.append((league, a))
-        except Exception as e:
-            print(f"[ogohlantirish] {league['slug']} yangiliklar: {e}", file=sys.stderr)
+    try:
+        items = [a for a in news.latest() if a["published"] >= since and a["headline"]]
+    except Exception as e:
+        sys.exit(f"Xato: yangiliklar olinmadi: {e}")
     # bir xil yangilik bir nechta ligada chiqishi mumkin
     seen, unique = set(), []
-    for league, a in sorted(items, key=lambda x: x[1]["published"], reverse=True):
+    for a in sorted(items, key=lambda x: x["published"], reverse=True):
         if a["headline"] not in seen:
             seen.add(a["headline"])
-            unique.append((league, a))
-    for league, a in unique[:NEWS_MAX_PER_RUN]:
+            unique.append(a)
+    for a in unique[:NEWS_MAX_PER_RUN]:
         try:
             title, body = ai.rewrite(a["headline"], a["description"])
         except Exception as e:
             print(f"[ogohlantirish] AI: {e}", file=sys.stderr)
             continue
-        telegram.send_photo(a["image"], posts.news_post(league, title, body, a["url"]), dry_run=dry)
+        telegram.send_photo(a["image"], posts.news_post(title, body, a["url"]), dry_run=dry)
 
 
 def main():

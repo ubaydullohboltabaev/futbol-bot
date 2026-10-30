@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: "0 */3 * * *"   # har 3 soatda
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Kanalga yubormay, faqat logda ko'rsatish"
+        type: boolean
+        default: false
 jobs:
   post:
     runs-on: ubuntu-latest
@@ -12,7 +17,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python main.py news
+      - run: python main.py news ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}

@@ -24,6 +24,9 @@ def collect(day):
             out.append((league, espn.fixtures(league["slug"], day)))
         except Exception as e:  # bitta liga ishlamasa, qolganlari davom etsin
             print(f"[ogohlantirish] {league['slug']}: {e}", file=sys.stderr)
+    if not out:
+        # Hech bir ligadan ma'lumot kelmadi: "bugun o'yin yo'q" deb noto'g'ri post yubormaymiz
+        sys.exit("Xato: o'yinlar manbasidan ma'lumot olinmadi")
     return out
 
 

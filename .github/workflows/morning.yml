@@ -3,6 +3,11 @@ on:
   schedule:
     - cron: "0 4 * * *"   # har kuni 09:00 Toshkent vaqti
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Kanalga yubormay, faqat logda ko'rsatish"
+        type: boolean
+        default: false
 jobs:
   post:
     runs-on: ubuntu-latest
@@ -12,7 +17,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python main.py morning
+      - run: python main.py morning ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}

@@ -56,3 +56,38 @@ def send_photo(photo_url, caption, dry_run=False):
         "caption": caption,
         "parse_mode": "HTML",
     })
+
+
+# ---------- admin bilan muloqot (tugmalar orqali tanlash) ----------
+
+def send_markup(chat_id, text, markup):
+    data = _call("sendMessage", {"chat_id": chat_id, "text": text, "parse_mode": "HTML",
+                                 "reply_markup": markup})
+    return data["result"]["message_id"]
+
+
+def edit_markup(chat_id, message_id, markup):
+    try:
+        _call("editMessageReplyMarkup", {"chat_id": chat_id, "message_id": message_id,
+                                         "reply_markup": markup})
+    except RuntimeError as e:
+        if "not modified" not in str(e):
+            raise
+
+
+def answer_callback(callback_id, text=""):
+    _call("answerCallbackQuery", {"callback_query_id": callback_id, "text": text})
+
+
+def get_updates(offset, timeout):
+    """Long polling: yangi xabar/tugma bosilishini `timeout` soniyagacha kutadi."""
+    if not TELEGRAM_BOT_TOKEN:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN sozlanmagan")
+    r = requests.post(API.format(token=TELEGRAM_BOT_TOKEN, method="getUpdates"),
+                      json={"offset": offset, "timeout": int(timeout),
+                            "allowed_updates": ["callback_query", "message"]},
+                      timeout=timeout + 15)
+    data = r.json()
+    if not data.get("ok"):
+        raise RuntimeError(f"Telegram xatosi: {data.get('description')}")
+    return data["result"]

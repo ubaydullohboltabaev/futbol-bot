@@ -44,6 +44,9 @@ NEWS_FEEDS = [
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHANNEL_ID = os.environ.get("TELEGRAM_CHANNEL_ID", "")  # masalan: @kanal_nomi
+# Sizning shaxsiy Telegram ID raqamingiz: bot har kuni ertalab jonli o'yinlarni tanlash uchun sizga yozadi
+TELEGRAM_ADMIN_ID = os.environ.get("TELEGRAM_ADMIN_ID", "").strip()
+MENU_HOUR = int(os.environ.get("MENU_HOUR", "9"))  # Toshkent vaqti bilan
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL", "claude-haiku-5-5")
 CHANNEL_SIGNATURE = os.environ.get("CHANNEL_SIGNATURE", "")  # postlar oxiriga qo'shiladi

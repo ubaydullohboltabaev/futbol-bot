@@ -11,7 +11,7 @@ on:
         default: false
       hours:
         description: "Necha soat ishlasin"
-        default: "5.8"
+        default: "5.9"
 concurrency:
   group: live   # bir vaqtda faqat bitta jonli kuzatuv
   cancel-in-progress: false
@@ -31,10 +31,11 @@ jobs:
           path: live_state.json
           key: live-state-${{ github.run_id }}
           restore-keys: live-state-
-      - run: python main.py live --hours ${{ inputs.hours || '5.8' }} ${{ inputs.dry_run && '--dry-run' || '' }}
+      - run: python main.py live --hours ${{ inputs.hours || '5.9' }} ${{ inputs.dry_run && '--dry-run' || '' }}
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          TELEGRAM_ADMIN_ID: ${{ secrets.TELEGRAM_ADMIN_ID }}
           API_FOOTBALL_KEY: ${{ secrets.API_FOOTBALL_KEY }}
           PYTHONUNBUFFERED: "1"
           LIVE_YELLOW_CARDS: ${{ vars.LIVE_YELLOW_CARDS }}

@@ -115,3 +115,57 @@ def test_standings_cached_once_per_day(monkeypatch):
     assert live.ranks_for(39, 2026, st, "2026-10-30") == {7: 1}
     assert live.ranks_for(39, 2026, st, "2026-10-30") == {7: 1}
     assert calls == [39]
+
+
+def test_menu_and_toggle(monkeypatch):
+    monkeypatch.setattr(live, "TELEGRAM_ADMIN_ID", "777")
+    edits, answers = [], []
+    monkeypatch.setattr(live.telegram, "edit_markup", lambda c, mid, mk: edits.append(mk))
+    monkeypatch.setattr(live.telegram, "answer_callback", lambda cid, t="": answers.append(t))
+    other = {**match("NS", None, fid=2), "home": "Burnley", "away": "Luton", "home_id": 5, "away_id": 6}
+    monkeypatch.setattr(football, "fixtures_on", lambda d: [match("NS", None), other])
+    monkeypatch.setattr(football, "standings", lambda lid, s: {40: 1})
+    st = fresh()
+    st["menus"] = {}
+    day = live.menu_day(KO)
+    menu = live.build_menu(day, live.live_league_ids(), st)
+    assert menu["selected"] == ["1"]  # Liverpool taklif qilinadi, Burnley yo'q
+    st["menus"][menu["day"]] = menu
+    texts = [b["text"] for row in live.menu_markup(menu)["inline_keyboard"] for b in row]
+    assert any(t.startswith("✅") and "Liverpool" in t for t in texts)
+    assert any(t.startswith("▫️") and "Burnley" in t for t in texts)
+
+    tap = {"update_id": 1, "callback_query": {"id": "c", "from": {"id": 777},
+           "message": {"message_id": 5}, "data": f"t:{menu['day']}:2"}}
+    assert live.handle_update(tap, st) and "2" in menu["selected"] and edits
+    # begona odam bosa — e'tiborsiz
+    stranger = {"update_id": 2, "callback_query": {"id": "d", "from": {"id": 1}, "data": f"t:{menu['day']}:2"}}
+    assert not live.handle_update(stranger, st) and "2" in menu["selected"]
+    none = {"update_id": 3, "callback_query": {"id": "e", "from": {"id": 777},
+            "message": {"message_id": 5}, "data": f"a:{menu['day']}:none"}}
+    assert live.handle_update(none, st) and menu["selected"] == []
+
+
+def test_interactive_run_follows_admin_choice(monkeypatch):
+    monkeypatch.setattr(live, "TELEGRAM_ADMIN_ID", "777")
+    monkeypatch.setattr(live, "load_state", lambda path=None: fresh())
+    monkeypatch.setattr(live, "save_state", lambda st, path=None: None)
+    clock = {"t": KO - timedelta(minutes=30)}
+    other = {**match("NS", None, fid=2), "home": "Burnley", "away": "Luton", "home_id": 5, "away_id": 6}
+    monkeypatch.setattr(football, "fixtures_on", lambda d: [match("NS", None), other])
+    monkeypatch.setattr(football, "standings", lambda lid, s: {40: 1})
+    menus_sent, posted, polled = [], [], []
+    monkeypatch.setattr(live.telegram, "send_markup", lambda c, t, mk: menus_sent.append(mk) or 9)
+    monkeypatch.setattr(live.telegram, "edit_markup", lambda *a: None)
+    monkeypatch.setattr(live.telegram, "answer_callback", lambda *a: None)
+    monkeypatch.setattr(live.telegram, "send", lambda text, dry_run=False: posted.append(text))
+    taps = [[{"update_id": 1, "callback_query": {"id": "c", "from": {"id": 777}, "message": {"message_id": 9},
+              "data": f"t:{live.menu_day(KO).isoformat()}:1"}}]]  # admin Liverpool'ni o'chiradi
+
+    def get_updates(offset, timeout):
+        clock["t"] += timedelta(seconds=timeout)
+        return taps.pop(0) if taps else []
+    monkeypatch.setattr(live.telegram, "get_updates", get_updates)
+    monkeypatch.setattr(football, "fixtures_by_ids", lambda ids: polled.append(ids) or [])
+    live.run(hours=3, now_fn=lambda: clock["t"], sleep=lambda s: None)
+    assert len(menus_sent) == 1 and polled == [] and posted == []

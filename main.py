@@ -69,7 +69,7 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("command", choices=["morning", "fixtures", "results", "news", "live"])
     p.add_argument("--dry-run", action="store_true")
-    p.add_argument("--hours", type=float, default=5.8, help="jonli rejim necha soat ishlasin")
+    p.add_argument("--hours", type=float, default=5.9, help="jonli rejim necha soat ishlasin")
     args = p.parse_args()
     if args.command in ("morning", "results"):
         run_results(args.dry_run)

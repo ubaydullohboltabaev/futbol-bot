@@ -207,3 +207,18 @@ def test_fetch_active_uses_live_feed_then_id(monkeypatch):
     # hali boshlanmagan (feedda yo'q, yaqinda) -> hech narsa so'ralmaydi
     calls.clear()
     assert live.fetch_active([a], {}, KO + timedelta(minutes=2)) == [] and calls == []
+
+
+def test_live_fixtures_uses_all_and_filters(monkeypatch):
+    seen = {}
+
+    def get(path, params):
+        seen.update(params)
+        item = lambda lid, fid: {"fixture": {"id": fid, "date": "2026-10-31T15:00:00+00:00",
+                                             "status": {"short": "1H", "elapsed": 5}},
+                                 "league": {"id": lid}, "teams": {"home": {"name": "A"}, "away": {"name": "B"}},
+                                 "goals": {"home": 0, "away": 0}}
+        return {"response": [item(39, 1), item(999, 2)]}
+    monkeypatch.setattr(football, "_get", get)
+    out = football.live_fixtures({39})
+    assert seen["live"] == "all" and [m["id"] for m in out] == [1] and out[0]["has_events"] is False

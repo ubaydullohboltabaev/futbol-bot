@@ -103,8 +103,12 @@ def fixture_by_id(fid):
 
 def live_fixtures(league_ids):
     """Hozir ketayotgan o'yinlar (bitta so'rov). Voqealar bo'lishi ham, bo'lmasligi ham mumkin."""
-    data = _get("fixtures", {"live": "-".join(str(i) for i in sorted(set(league_ids))),
-                             "timezone": "UTC"})
+    # "live" parametriga liga ro'yxatini berish ba'zan rad etiladi, shuning uchun
+    # hammasini olib, o'zimiz filtrlaymiz (baribir bitta so'rov)
+    wanted = set(league_ids)
+    data = _get("fixtures", {"live": "all", "timezone": "UTC"})
+    data["response"] = [it for it in data.get("response", [])
+                        if (it.get("league") or {}).get("id") in wanted]
     for item in data.get("response", []):
         item.setdefault("_has_events", "events" in item)
     out = []

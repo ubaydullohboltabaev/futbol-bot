@@ -535,6 +535,7 @@ def run(hours=5.9, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(
                 continue
             for m in fresh:
                 for text in process(m, state):
+                    print("Yuborildi:", text.splitlines()[1] if "\n" in text else text)
                     try:
                         telegram.send(text, dry_run=dry_run)
                     except Exception as e:

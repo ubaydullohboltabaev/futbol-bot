@@ -222,3 +222,13 @@ def test_live_fixtures_uses_all_and_filters(monkeypatch):
     monkeypatch.setattr(football, "_get", get)
     out = football.live_fixtures({39})
     assert seen["live"] == "all" and [m["id"] for m in out] == [1] and out[0]["has_events"] is False
+
+
+def test_poll_interval_spreads_until_reset_and_saves_reserve(monkeypatch):
+    now = KO
+    later = {**match("NS"), "kickoff": KO + timedelta(hours=5)}  # kechki o'yin
+    monkeypatch.setitem(football.quota, "remaining", 66)  # 60 so'rov ishlatsa bo'ladi
+    iv = live.poll_interval(now, [match("1H"), later], now + timedelta(hours=9))
+    assert iv == int(2 * 115 * 60 / 60)  # ikkala o'yin vaqtiga taqsimlanadi
+    monkeypatch.setitem(football.quota, "remaining", live.RESERVE_PER_DAY)
+    assert live.poll_interval(now, [match("1H")], now + timedelta(hours=6)) == 900

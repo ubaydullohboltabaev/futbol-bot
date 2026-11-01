@@ -270,7 +270,9 @@ def poll_interval(now, matches, deadline):
     remaining = football.quota["remaining"]
     if remaining is None:
         return max(LIVE_MIN_INTERVAL, 180)
-    budget = max(1, remaining - RESERVE_PER_DAY)
+    if remaining <= RESERVE_PER_DAY:
+        return 900  # kunlik limit deyarli tugadi — ertalabki post uchun saqlab qolamiz
+    budget = remaining - RESERVE_PER_DAY
     # oynada qolgan "jonli" vaqt (o'yinlar ustma-ust tushsa bir marta hisoblanadi)
     spans = sorted((max(now, m["kickoff"]), min(deadline, m["kickoff"] + MATCH_LENGTH))
                    for m in matches if not m["completed"])
@@ -284,7 +286,7 @@ def poll_interval(now, matches, deadline):
         elif e > cur_end:
             live_secs += (e - cur_end).total_seconds()
             cur_end = e
-    return max(LIVE_MIN_INTERVAL, int(live_secs / budget) if live_secs else LIVE_MIN_INTERVAL)
+    return max(LIVE_MIN_INTERVAL, int(live_secs / budget) if live_secs else 120)
 
 
 # ---------- ertalabki tanlov menyusi ----------
@@ -478,7 +480,8 @@ def run(hours=5.9, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(
             if changed:
                 return  # tanlov o'zgardi — darhol qayta hisoblaymiz
 
-    def selected_matches(now):
+    def selected_matches(now, until=None):
+        until = until or deadline
         out = []
         for menu in state["menus"].values():
             for fid in menu["selected"]:
@@ -487,7 +490,7 @@ def run(hours=5.9, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(
                     continue
                 ko = datetime.fromisoformat(f["kickoff"])
                 done = live_data.get(fid, {}).get("completed")
-                if not done and now - timedelta(hours=4) <= ko <= deadline:
+                if not done and now - timedelta(hours=4) <= ko <= until:
                     out.append({"id": int(fid), "kickoff": ko, "completed": False,
                                 "league_id": f["league_id"]})
         return out
@@ -546,8 +549,11 @@ def run(hours=5.9, dry_run=False, sleep=time.sleep, now_fn=lambda: datetime.now(
                 live_data[str(m["id"])] = m
             save_state(state)
 
-            todo = selected_matches(now_fn())
-            interval = poll_interval(now_fn(), todo, deadline)
+            # limit 00:00 UTC da yangilanadi: shu vaqtgacha bo'lgan barcha tanlangan
+            # o'yinlarga yetadigan qilib taqsimlaymiz (faqat shu oynaga emas)
+            t = now_fn()
+            reset = datetime.combine(t.date() + timedelta(days=1), dtime(0), timezone.utc)
+            interval = poll_interval(t, selected_matches(t, reset), reset)
             print(f"Qolgan so'rovlar: {football.quota['remaining']}, keyingi tekshiruv {interval} s dan keyin")
             wait(interval)
     finally:
